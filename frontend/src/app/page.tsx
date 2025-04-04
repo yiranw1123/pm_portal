@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { Separator } from "@/components/ui/separator"
 import { LayoutDashboard, FolderKanban, ListTodo, Users, Settings, ChevronRight, ChevronDown, Plus, Search, Users2, Map, Layers, Calendar, Folders, FolderGit2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -76,6 +76,22 @@ export default function Home() {
     name: '',
     description: ''
   })
+  const [projects, setProjects] = useState<Project[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Initialize projects from localStorage
+  useEffect(() => {
+    const savedProjects = localStorage.getItem('projects')
+    setProjects(savedProjects ? JSON.parse(savedProjects) : SAMPLE_PROJECTS)
+    setIsLoading(false)
+  }, [])
+
+  // Update localStorage whenever projects change
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('projects', JSON.stringify(projects))
+    }
+  }, [projects, isLoading])
 
   const handleProjectSelect = (project: Project) => {
     setCurrentProject(project)
@@ -89,7 +105,7 @@ export default function Home() {
 
   const handleCreateProject = () => {
     const project: Project = {
-      id: SAMPLE_PROJECTS.length + 1,
+      id: projects.length + 1,
       name: newProject.name,
       description: newProject.description,
       sections: DASHBOARD_ITEMS.map(item => ({
@@ -98,10 +114,18 @@ export default function Home() {
       }))
     }
     
-    SAMPLE_PROJECTS.push(project)
-    
+    setProjects(prevProjects => [...prevProjects, project])
     setNewProject({ name: '', description: '' })
     setIsNewProjectOpen(false)
+  }
+
+  const handleDeleteProject = (projectId: number, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent row click when clicking delete
+    setProjects(prevProjects => prevProjects.filter(p => p.id !== projectId))
+    if (currentProject?.id === projectId) {
+      setCurrentProject(null)
+      setCurrentView('projects')
+    }
   }
 
   // Sidebar rendering
@@ -140,7 +164,7 @@ export default function Home() {
               All Projects
             </DropdownMenuItem>
             <Separator className="my-1" />
-            {SAMPLE_PROJECTS.map(project => (
+            {projects.map(project => (
               <DropdownMenuItem
                 key={project.id}
                 className="gap-2"
@@ -293,10 +317,11 @@ export default function Home() {
                     <TableHead>Name</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Progress</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {SAMPLE_PROJECTS.map((project) => (
+                  {projects.map((project) => (
                     <TableRow 
                       key={project.id} 
                       className="cursor-pointer" 
@@ -314,6 +339,15 @@ export default function Home() {
                             {project.sections.filter(s => s.completed).length}/{TOTAL_SECTIONS} sections
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={(e) => handleDeleteProject(project.id, e)}
+                        >
+                          Delete
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -341,10 +375,6 @@ export default function Home() {
               // Dashboard Carousel View
               <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
                 <Card className="w-[1200px]">
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-3xl">Welcome to PM Portal</CardTitle>
-                    <CardDescription className="text-lg">Your project management solution</CardDescription>
-                  </CardHeader>
                   <CardContent>
                     <div className="flex flex-col gap-6">
                       <div className="relative px-20">
